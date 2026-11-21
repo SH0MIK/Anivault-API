@@ -47,7 +47,7 @@ export function sortQualitiesDesc<T extends { label?: string }>(qualities: T[]):
 }
 
 
-function proxiedSubtitleUrl(req: Request, url: string, ref?: string): string {
+export function proxiedSubtitleUrl(req: Request, url: string, ref?: string): string {
   const refParam = ref ? `&ref=${encodeURIComponent(ref)}` : '';
   return `${publicBase(req)}/api/proxy/subtitle?url=${encodeURIComponent(url)}${refParam}`;
 }
