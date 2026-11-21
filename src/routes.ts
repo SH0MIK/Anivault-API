@@ -411,7 +411,7 @@ router.get('/servers', async (req: Request, res: Response) => {
           ...(s.lang ? { lang: s.lang } : {}),
           ...(s.audioTrack ? { audioTrack: { ...s.audioTrack, hlsProxyUrl: s.audioTrack.url ? proxiedHlsUrl(req, s.audioTrack.url, ref) : null } } : {}),
           ...(s.qualities ? { qualities: s.qualities.map((quality: any) => {
-            const hls = /\.m3u8(?:$|\\?)/i.test(String(quality.url || '')) || /\/hls\//i.test(String(quality.url || ''));
+            const hls = /\.m3u8(?:$|\?)/i.test(String(quality.url || '')) || /\/hls\//i.test(String(quality.url || ''));
             return { ...quality, hlsProxyUrl: hls ? proxiedHlsUrl(req, quality.url, ref) : null, mp4ProxyUrl: !hls ? proxiedVideoUrl(req, quality.url, ref) : null };
           }) } : {}),
         };
@@ -637,15 +637,15 @@ async function watchHandler(req: Request, res: Response, directAnikotoId?: strin
     if (source === 'animesalt') {
       const isHls = Boolean(embedResult.m3u8), isMp4 = Boolean(embedResult.mp4);
       const qualities = (embedResult.qualities ?? []).map((quality: any) => {
-        const hls = isHls || /\.m3u8(?:$|\\?)/i.test(String(quality.url || '')) || /\/hls\//i.test(String(quality.url || ''));
+        const hls = isHls || /\.m3u8(?:$|\?)/i.test(String(quality.url || '')) || /\/hls\//i.test(String(quality.url || ''));
         return { ...quality, hlsProxyUrl: hls ? proxiedHlsUrl(req, quality.url, embedResult.referer) : null,
           mp4ProxyUrl: !hls ? proxiedVideoUrl(req, quality.url, embedResult.referer) : null };
       });
       const streams = (embedResult.streams ?? []).map((stream: any) => ({
         ...stream, qualities: (stream.qualities ?? []).map((quality: any) => {
-          const hls = /\.m3u8(?:$|\\?)/i.test(String(quality.url || '')) || /\/hls\//i.test(String(quality.url || ''));
+          const hls = /\.m3u8(?:$|\?)/i.test(String(quality.url || '')) || /\/hls\//i.test(String(quality.url || ''));
           return { ...quality, hlsProxyUrl: hls ? proxiedHlsUrl(req, quality.url, stream.referer || embedResult.referer) : null,
-            mp4ProxyUrl: !hls ? proxiedVideoUrl(req, quality.url) : null };
+            mp4ProxyUrl: !hls ? proxiedVideoUrl(req, quality.url, stream.referer || embedResult.referer) : null };
         }),
       }));
       return res.json({
