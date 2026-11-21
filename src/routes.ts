@@ -46,10 +46,10 @@ function animeSaltReferer(sourceId: string): string | undefined {
     if (sourceId.startsWith('animesalt:')) {
       const payload = JSON.parse(Buffer.from(sourceId.slice('animesalt:'.length), 'base64url').toString('utf8'));
       const url = String(payload.link || payload.url || '');
-      if (/abyssplayer|short\\.icu|sssrr\\.org/i.test(url)) return 'https://player.abyssplayer.com/';
-      if (/megaplay\\.buzz/i.test(url)) return 'https://megaplay.buzz/';
-      if (/cybervynx\\.com|vdohide/i.test(url)) return 'https://cybervynx.com/';
-      if (/ravok\\.buzz|as-cdn/i.test(url)) return 'https://ravok.buzz/';
+      if (/abyssplayer|short\.icu|sssrr\.org/i.test(url)) return 'https://player.abyssplayer.com/';
+      if (/megaplay\.buzz/i.test(url)) return 'https://megaplay.buzz/';
+      if (/cybervynx\.com|vdohide/i.test(url)) return 'https://cybervynx.com/';
+      if (/ravok\.buzz|as-cdn/i.test(url)) return 'https://ravok.buzz/';
     }
   } catch {}
   return 'https://ravok.buzz/';
@@ -393,7 +393,7 @@ router.get('/servers', async (req: Request, res: Response) => {
           ...(s.lang ? { lang: s.lang } : {}),
           ...(s.audioTrack ? { audioTrack: { ...s.audioTrack, hlsProxyUrl: s.audioTrack.url ? proxiedHlsUrl(req, s.audioTrack.url, ref) : null } } : {}),
           ...(s.qualities ? { qualities: s.qualities.map((quality: any) => {
-            const hls = /\\.m3u8(?:$|\\?)/i.test(String(quality.url || '')) || /\\/hls\\//i.test(String(quality.url || ''));
+            const hls = /\.m3u8(?:$|\\?)/i.test(String(quality.url || '')) || /\/hls\//i.test(String(quality.url || ''));
             return { ...quality, hlsProxyUrl: hls ? proxiedHlsUrl(req, quality.url, ref) : null, mp4ProxyUrl: !hls ? proxiedVideoUrl(req, quality.url, ref) : null };
           }) } : {}),
         };
@@ -619,13 +619,13 @@ async function watchHandler(req: Request, res: Response, directAnikotoId?: strin
     if (source === 'animesalt') {
       const isHls = Boolean(embedResult.m3u8), isMp4 = Boolean(embedResult.mp4);
       const qualities = (embedResult.qualities ?? []).map((quality: any) => {
-        const hls = isHls || /\\.m3u8(?:$|\\?)/i.test(String(quality.url || '')) || /\\/hls\\//i.test(String(quality.url || ''));
+        const hls = isHls || /\.m3u8(?:$|\\?)/i.test(String(quality.url || '')) || /\/hls\//i.test(String(quality.url || ''));
         return { ...quality, hlsProxyUrl: hls ? proxiedHlsUrl(req, quality.url, embedResult.referer) : null,
           mp4ProxyUrl: !hls ? proxiedVideoUrl(req, quality.url) : null };
       });
       const streams = (embedResult.streams ?? []).map((stream: any) => ({
         ...stream, qualities: (stream.qualities ?? []).map((quality: any) => {
-          const hls = /\\.m3u8(?:$|\\?)/i.test(String(quality.url || '')) || /\\/hls\\//i.test(String(quality.url || ''));
+          const hls = /\.m3u8(?:$|\\?)/i.test(String(quality.url || '')) || /\/hls\//i.test(String(quality.url || ''));
           return { ...quality, hlsProxyUrl: hls ? proxiedHlsUrl(req, quality.url, stream.referer || embedResult.referer) : null,
             mp4ProxyUrl: !hls ? proxiedVideoUrl(req, quality.url) : null };
         }),
