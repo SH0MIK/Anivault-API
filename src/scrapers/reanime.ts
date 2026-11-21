@@ -710,7 +710,7 @@ async function resolveReanimeSeriesByTitle(title: string, altTitle?: string | nu
   const series = {
     animeId: selected.animeId,
     title: searchItemTitle(selected.item) || selected.animeId,
-    // Title-only Hoshika requests can still use ReAnime's own AniList mapping for Flix servers.
+    // Title-only requests can still use ReAnime's own AniList mapping for Flix servers.
     anilistId: Number.isFinite(detailAnilistId) && detailAnilistId > 0 ? detailAnilistId : null,
     malId: Number.isFinite(detailMalId) && detailMalId > 0 ? detailMalId : null,
     subbed: Number.isFinite(selected.item?.subbed) ? selected.item.subbed : null,
