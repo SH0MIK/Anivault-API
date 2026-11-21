@@ -38,7 +38,16 @@ function proxiedVideoUrl(req: Request, url: string, ref?: string): string {
   return `${publicBase(req)}/api/proxy/video?url=${encodeURIComponent(url)}${refParam}`;
 }
 
-export function proxiedSubtitleUrl(req: Request, url: string, ref?: string): string {
+export function sortQualitiesDesc<T extends { label?: string }>(qualities: T[]): T[] {
+  const rank = (label?: string): number => {
+    const match = String(label ?? '').match(/(\d{3,4})/);
+    return match ? parseInt(match[1], 10) : Infinity;
+  };
+  return [...qualities].sort((a, b) => rank(b.label) - rank(a.label));
+}
+
+
+function proxiedSubtitleUrl(req: Request, url: string, ref?: string): string {
   const refParam = ref ? `&ref=${encodeURIComponent(ref)}` : '';
   return `${publicBase(req)}/api/proxy/subtitle?url=${encodeURIComponent(url)}${refParam}`;
 }
