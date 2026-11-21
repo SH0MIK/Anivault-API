@@ -74,7 +74,7 @@ async function enrichDesidub(result: SiteIds, altTitle?: string | null): Promise
 
 async function enrichSelectedSource(
   result: SiteIds,
-  source?: 'animeheaven' | 'anikoto' | 'desidub',
+  source?: 'animeheaven' | 'anikoto' | 'desidub' | 'megaplay',
 ): Promise<SiteIds> {
   if (source === 'animeheaven') return enrichAnimeHeaven(result, result.altTitle);
   if (source === 'anikoto') return enrichAnikoto(result, result.altTitle);
@@ -121,7 +121,7 @@ async function getAnilistTitle(anilistId: number): Promise<{ title: string; altT
 }
 
 // AniList ID → metadata + site-specific IDs
-export async function getSiteIds(anilistId: number, source?: 'animeheaven' | 'anikoto' | 'desidub'): Promise<SiteIds | null> {
+export async function getSiteIds(anilistId: number, source?: 'animeheaven' | 'anikoto' | 'desidub' | 'megaplay'): Promise<SiteIds | null> {
   const cacheKey = `siteids:${anilistId}`;
   const cached = cacheGet<SiteIds>(cacheKey);
   if (cached) {
@@ -177,7 +177,7 @@ export async function getSiteIds(anilistId: number, source?: 'animeheaven' | 'an
 // zoro/gogoanime via Anify both key off anilistId, so
 // those stay unavailable here -- everything keyed off title (animeheaven,
 // anikoto, desidub) still works normally.
-export async function getSiteIdsByMal(malId: number, source?: 'animeheaven' | 'anikoto' | 'desidub'): Promise<SiteIds | null> {
+export async function getSiteIdsByMal(malId: number, source?: 'animeheaven' | 'anikoto' | 'desidub' | 'megaplay'): Promise<SiteIds | null> {
   const cacheKey = `siteids:mal:${malId}`;
   const cached = cacheGet<SiteIds>(cacheKey);
   if (cached) {
