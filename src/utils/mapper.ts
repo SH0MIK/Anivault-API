@@ -72,6 +72,17 @@ async function enrichDesidub(result: SiteIds, altTitle?: string | null): Promise
   return result;
 }
 
+async function enrichSelectedSource(
+  result: SiteIds,
+  source?: 'animeheaven' | 'anikoto' | 'desidub',
+): Promise<SiteIds> {
+  if (source === 'animeheaven') return enrichAnimeHeaven(result, result.altTitle);
+  if (source === 'anikoto') return enrichAnikoto(result, result.altTitle);
+  if (source === 'desidub') return enrichDesidub(result, result.altTitle);
+  // No provider requested: resolve metadata only. Never scrape every site.
+  return result;
+}
+
 // MAL ID → AniList ID
 // Returns null (never throws) if AniList is down/unreachable -- callers use
 // that as the signal to fall back to the MAL-only path (getSiteIdsByMal).
@@ -110,17 +121,12 @@ async function getAnilistTitle(anilistId: number): Promise<{ title: string; altT
 }
 
 // AniList ID → metadata + site-specific IDs
-export async function getSiteIds(anilistId: number): Promise<SiteIds | null> {
+export async function getSiteIds(anilistId: number, source?: 'animeheaven' | 'anikoto' | 'desidub'): Promise<SiteIds | null> {
   const cacheKey = `siteids:${anilistId}`;
   const cached = cacheGet<SiteIds>(cacheKey);
   if (cached) {
-    const wasMissingAnimeHeaven = !cached.siteIds.animeheaven;
-    const wasMissingAnikoto = !cached.siteIds.anikoto;
-    const wasMissingDesidub = !cached.siteIds.desidub;
-    const enriched = await enrichDesidub(await enrichAnikoto(await enrichAnimeHeaven(cached, cached.altTitle), cached.altTitle), cached.altTitle);
-    if ((wasMissingAnimeHeaven && enriched.siteIds.animeheaven) || (wasMissingAnikoto && enriched.siteIds.anikoto) || (wasMissingDesidub && enriched.siteIds.desidub)) {
-      cacheSet(cacheKey, enriched);
-    }
+    const enriched = await enrichSelectedSource(cached, source);
+    if (enriched !== cached) cacheSet(cacheKey, enriched);
     return enriched;
   }
 
@@ -152,9 +158,7 @@ export async function getSiteIds(anilistId: number): Promise<SiteIds | null> {
     // Anify down or missing — fall through to direct scraper fallbacks below
   }
 
-  await enrichAnimeHeaven(result, result.altTitle);
-  await enrichAnikoto(result, result.altTitle);
-  await enrichDesidub(result, result.altTitle);
+  await enrichSelectedSource(result, source);
 
   // If still no zoro ID, try a slug guess (title-anilistId format common on HiAnime clones)
   // This is a heuristic and may not always work
@@ -173,17 +177,12 @@ export async function getSiteIds(anilistId: number): Promise<SiteIds | null> {
 // zoro/gogoanime via Anify both key off anilistId, so
 // those stay unavailable here -- everything keyed off title (animeheaven,
 // anikoto, desidub) still works normally.
-export async function getSiteIdsByMal(malId: number): Promise<SiteIds | null> {
+export async function getSiteIdsByMal(malId: number, source?: 'animeheaven' | 'anikoto' | 'desidub'): Promise<SiteIds | null> {
   const cacheKey = `siteids:mal:${malId}`;
   const cached = cacheGet<SiteIds>(cacheKey);
   if (cached) {
-    const wasMissingAnimeHeaven = !cached.siteIds.animeheaven;
-    const wasMissingAnikoto = !cached.siteIds.anikoto;
-    const wasMissingDesidub = !cached.siteIds.desidub;
-    const enriched = await enrichDesidub(await enrichAnikoto(await enrichAnimeHeaven(cached, cached.altTitle), cached.altTitle), cached.altTitle);
-    if ((wasMissingAnimeHeaven && enriched.siteIds.animeheaven) || (wasMissingAnikoto && enriched.siteIds.anikoto) || (wasMissingDesidub && enriched.siteIds.desidub)) {
-      cacheSet(cacheKey, enriched);
-    }
+    const enriched = await enrichSelectedSource(cached, source);
+    if (enriched !== cached) cacheSet(cacheKey, enriched);
     return enriched;
   }
 
@@ -205,9 +204,7 @@ export async function getSiteIdsByMal(malId: number): Promise<SiteIds | null> {
     siteIds: {},
   };
 
-  await enrichAnimeHeaven(result, result.altTitle);
-  await enrichAnikoto(result, result.altTitle);
-  await enrichDesidub(result, result.altTitle);
+  await enrichSelectedSource(result, source);
 
   cacheSet(cacheKey, result);
   return result;
