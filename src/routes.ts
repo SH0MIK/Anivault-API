@@ -9,6 +9,8 @@ import { getHeavenEpisodes, getHeavenServers, getHeavenStream } from './scrapers
 import { getAnikotoEpisodes, getAnikotoEpisodesById, getAnikotoServers, getAnikotoEmbedUrl, searchAnikoto } from './scrapers/anikoto';
 import { getMegaPlayStream } from './scrapers/megaplay';
 import { getDesidubEpisodes, getDesidubServers, getDesidubStream } from './scrapers/desidub';
+import { getReanimeEpisodes, getReanimeServers, getReanimeStream } from './scrapers/reanime';
+import { getAnimeSaltEpisodes, getAnimeSaltServers, getAnimeSaltStream } from './scrapers/animesalt';
 import { getAnimeDetails, getEpisodes as getMalEpisodes, getEpisode as getMalEpisode, getAllEpisodes as getAllMalEpisodes, getCharacters, getCharacterDetails, getAnimePictures, getCharacterPictures, getAnimeThemes, getAnimeVideos, getRecommendations, searchAnime, getExternalLinks, getStreamingPlatforms, debugSearchHtml, MalEpisode } from './scrapers/mal';
 import { getSeasonNow, getTopBanners, getStreamingEpisodes, AniListStreamingEpisode, getAnimeImages as getAnilistAnimeImages } from './scrapers/anilist';
 import { getEpisodeThumbnail as getTmdbEpisodeThumbnail, getEpisodeData as getTmdbEpisodeData, getShowEpisodeCount as getTmdbEpisodeCount, getAnimeImages as getTmdbAnimeImages, extractSeasonHint } from './scrapers/tmdb';
@@ -16,7 +18,7 @@ import { getKitsuAnimeId, getEpisodeThumbnail as getKitsuEpisodeThumbnail, getEp
 
 const router = Router();
 
-const SOURCES = ['animeheaven', 'anikoto', 'desidub', 'megaplay'] as const;
+const SOURCES = ['animeheaven', 'anikoto', 'desidub', 'reanime', 'animesalt', 'megaplay'] as const;
 type Source = typeof SOURCES[number];
 
 function publicBase(req: Request): string {
@@ -122,6 +124,28 @@ async function fetchEpisodes(source: Source, siteIds: any, overrides: { heavenId
     const slug = siteIds.siteIds?.desidub as string | undefined;
     if (!slug) return { episodes: [], siteId: '', error: 'Not indexed on DesiDub' };
     return { episodes: await getDesidubEpisodes(slug), siteId: slug };
+  }
+  if (source === 'reanime') {
+    const title = siteIds.title as string | undefined;
+    if (!title || title === 'Unknown') return { episodes: [], siteId: '', error: 'Could not resolve an anime title for Re:Anime' };
+    try {
+      const episodes = await getReanimeEpisodes({ anilistId: siteIds.anilistId, malId: siteIds.malId, title, altTitle: siteIds.altTitle });
+      return { episodes, siteId: siteIds.anilistId ? String(siteIds.anilistId) : String(siteIds.malId || title) };
+    } catch (error) {
+      return { episodes: [], siteId: '', error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+  if (source === 'animesalt') {
+    const title = siteIds.title as string | undefined;
+    const altTitle = siteIds.altTitle as string | undefined;
+    const slug = siteIds.siteIds?.animesalt as string | undefined;
+    if (!slug && (!title || title === 'Unknown')) return { episodes: [], siteId: '', error: 'Could not resolve an anime title for AnimeSalt' };
+    try {
+      const episodes = await getAnimeSaltEpisodes({ title, altTitle, siteId: slug });
+      return { episodes, siteId: slug || String(title) };
+    } catch (error) {
+      return { episodes: [], siteId: '', error: error instanceof Error ? error.message : String(error) };
+    }
   }
   if (source === 'megaplay') {
     const malId = Number(siteIds.malId);
@@ -332,6 +356,8 @@ router.get('/servers', async (req: Request, res: Response) => {
     if (source === 'animeheaven') allServers = await getHeavenServers(episode.id, `https://animeheaven.me/anime.php?${epResult.siteId}`);
     if (source === 'anikoto') allServers = await getAnikotoServers(episode.id);
     if (source === 'desidub') allServers = await getDesidubServers(episode.id);
+    if (source === 'reanime') allServers = await getReanimeServers(episode.id);
+    if (source === 'animesalt') allServers = await getAnimeSaltServers(episode.id);
     if (source === 'megaplay') allServers = [{ name: 'MegaPlay Direct', sourceId: String(epNum), type: type === 'dub' ? 'dub' : 'sub' }];
 
     const filtered = type === 'all' ? allServers : allServers.filter((s: any) => s.type === type);
@@ -411,6 +437,8 @@ async function watchHandler(req: Request, res: Response, directAnikotoId?: strin
     if (source === 'animeheaven') allServers = await getHeavenServers(episode.id);
     if (source === 'anikoto') allServers = await getAnikotoServers(episode.id);
     if (source === 'desidub') allServers = await getDesidubServers(episode.id);
+    if (source === 'reanime') allServers = await getReanimeServers(episode.id);
+    if (source === 'animesalt') allServers = await getAnimeSaltServers(episode.id);
 
     const filtered = type === 'all'
       ? allServers
@@ -443,6 +471,8 @@ async function watchHandler(req: Request, res: Response, directAnikotoId?: strin
       if (source === 'animeheaven') raw = await getHeavenStream(server.sourceId, server.referer);
       if (source === 'anikoto') raw = await getAnikotoEmbedUrl(server.sourceId);
       if (source === 'desidub') raw = await getDesidubStream(server.sourceId);
+      if (source === 'reanime') raw = await getReanimeStream(server.sourceId);
+      if (source === 'animesalt') raw = await getAnimeSaltStream(server.sourceId);
       if (raw) { embedResult = raw; usedServer = server.name; break; }
     }
     if (!embedResult) {
@@ -530,6 +560,66 @@ async function watchHandler(req: Request, res: Response, directAnikotoId?: strin
         intro: null,
         outro: null,
         note: isHls || isMp4 ? null : 'No direct stream extracted — use embedUrl in an iframe.',
+      });
+    }
+
+    if (source === 'reanime') {
+      const isHls = Boolean(embedResult.m3u8);
+      return res.json({
+        anilistId: siteIds.anilistId, malId: siteIds.malId, title: siteIds.title,
+        episode: epNum, type, source, siteId: epResult.siteId, server: usedServer,
+        availableServers: filtered.map((s: any) => s.name), embedUrl: embedResult.embedUrl,
+        m3u8: embedResult.m3u8 ?? null,
+        hlsProxyUrl: isHls ? proxiedHlsUrl(req, embedResult.m3u8, embedResult.referer) : null,
+        playbackMode: isHls ? 'hls' : 'iframe', iframeOnly: !isHls,
+        selectedAudioLang: embedResult.selectedAudioLang ?? null,
+        audioTracks: (embedResult.audioTracks ?? []).map((track: any) => ({
+          ...track, hlsProxyUrl: track.url ? proxiedHlsUrl(req, track.url, embedResult.referer) : null,
+        })),
+        qualities: (embedResult.qualities ?? []).map((quality: any) => ({
+          ...quality, hlsProxyUrl: proxiedHlsUrl(req, quality.url, embedResult.referer),
+        })),
+        subtitles: (embedResult.subtitles ?? []).map((subtitle: any) => ({
+          ...subtitle, url: proxiedSubtitleUrl(req, subtitle.url, embedResult.referer),
+        })),
+        intro: embedResult.intro ?? null, outro: embedResult.outro ?? null,
+        thumbnailsVtt: embedResult.thumbnailsVtt ?? null, videoTitle: embedResult.videoTitle ?? null,
+        note: isHls ? null : 'No direct HLS stream extracted; use embedUrl in an iframe.',
+      });
+    }
+
+    if (source === 'animesalt') {
+      const isHls = Boolean(embedResult.m3u8), isMp4 = Boolean(embedResult.mp4);
+      const qualities = (embedResult.qualities ?? []).map((quality: any) => {
+        const hls = isHls || /\\.m3u8(?:$|\\?)/i.test(String(quality.url || '')) || /\\/hls\\//i.test(String(quality.url || ''));
+        return { ...quality, hlsProxyUrl: hls ? proxiedHlsUrl(req, quality.url, embedResult.referer) : null,
+          mp4ProxyUrl: !hls ? proxiedVideoUrl(req, quality.url) : null };
+      });
+      const streams = (embedResult.streams ?? []).map((stream: any) => ({
+        ...stream, qualities: (stream.qualities ?? []).map((quality: any) => {
+          const hls = /\\.m3u8(?:$|\\?)/i.test(String(quality.url || '')) || /\\/hls\\//i.test(String(quality.url || ''));
+          return { ...quality, hlsProxyUrl: hls ? proxiedHlsUrl(req, quality.url, stream.referer || embedResult.referer) : null,
+            mp4ProxyUrl: !hls ? proxiedVideoUrl(req, quality.url) : null };
+        }),
+      }));
+      return res.json({
+        anilistId: siteIds.anilistId, malId: siteIds.malId, title: siteIds.title,
+        episode: epNum, type, source, siteId: epResult.siteId, server: usedServer,
+        availableServers: filtered.map((s: any) => s.name), embedUrl: embedResult.embedUrl,
+        m3u8: embedResult.m3u8 ?? null,
+        hlsProxyUrl: isHls ? proxiedHlsUrl(req, embedResult.m3u8, embedResult.referer) : null,
+        mp4: embedResult.mp4 ?? null, mp4ProxyUrl: isMp4 ? proxiedVideoUrl(req, embedResult.mp4) : null,
+        streamUrl: isHls ? proxiedHlsUrl(req, embedResult.m3u8, embedResult.referer) : isMp4 ? proxiedVideoUrl(req, embedResult.mp4) : null,
+        playbackMode: isHls ? 'hls' : isMp4 ? 'mp4' : 'iframe', iframeOnly: !isHls && !isMp4,
+        qualities, streams,
+        audioTracks: (embedResult.audioTracks ?? []).map((track: any) => ({
+          ...track, hlsProxyUrl: track.url ? proxiedHlsUrl(req, track.url, embedResult.referer) : null,
+        })),
+        subtitles: (embedResult.subtitles ?? []).map((subtitle: any) => ({
+          ...subtitle, url: proxiedSubtitleUrl(req, subtitle.url, embedResult.referer),
+        })),
+        intro: null, outro: null,
+        note: isHls || isMp4 ? null : 'No direct stream extracted; use embedUrl in an iframe.',
       });
     }
 
