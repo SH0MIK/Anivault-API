@@ -72,6 +72,27 @@ async function enrichDesidub(result: SiteIds, altTitle?: string | null): Promise
   return result;
 }
 
+/**
+ * Resolve only the site mapping requested by the caller. Calls without a
+ * source keep the legacy full-enrichment behavior used by /info.
+ */
+async function enrichSelectedSource(result: SiteIds, source?: string, altTitle?: string | null): Promise<SiteIds> {
+  if (!source) {
+    await enrichAnimeHeaven(result, altTitle);
+    await enrichAnikoto(result, altTitle);
+    await enrichDesidub(result, altTitle);
+  } else if (source === 'animeheaven') {
+    await enrichAnimeHeaven(result, altTitle);
+  } else if (source === 'anikoto') {
+    await enrichAnikoto(result, altTitle);
+  } else if (source === 'desidub') {
+    await enrichDesidub(result, altTitle);
+  }
+  // Re:Anime and MegaPlay use AniList/MAL IDs directly, so they need no
+  // title-based provider lookup at all.
+  return result;
+}
+
 
 // MAL ID → AniList ID
 // Returns null (never throws) if AniList is down/unreachable -- callers use
@@ -111,14 +132,14 @@ async function getAnilistTitle(anilistId: number): Promise<{ title: string; altT
 }
 
 // AniList ID → metadata + site-specific IDs
-export async function getSiteIds(anilistId: number): Promise<SiteIds | null> {
+export async function getSiteIds(anilistId: number, source?: string): Promise<SiteIds | null> {
   const cacheKey = `siteids:${anilistId}`;
   const cached = cacheGet<SiteIds>(cacheKey);
   if (cached) {
     const wasMissingAnimeHeaven = !cached.siteIds.animeheaven;
     const wasMissingAnikoto = !cached.siteIds.anikoto;
     const wasMissingDesidub = !cached.siteIds.desidub;
-    const enriched = await enrichDesidub(await enrichAnikoto(await enrichAnimeHeaven(cached, cached.altTitle), cached.altTitle), cached.altTitle);
+    const enriched = await enrichSelectedSource(cached, source, cached.altTitle);
     if ((wasMissingAnimeHeaven && enriched.siteIds.animeheaven) || (wasMissingAnikoto && enriched.siteIds.anikoto) || (wasMissingDesidub && enriched.siteIds.desidub)) {
       cacheSet(cacheKey, enriched);
     }
@@ -153,9 +174,7 @@ export async function getSiteIds(anilistId: number): Promise<SiteIds | null> {
     // Anify down or missing — fall through to direct scraper fallbacks below
   }
 
-  await enrichAnimeHeaven(result, result.altTitle);
-  await enrichAnikoto(result, result.altTitle);
-  await enrichDesidub(result, result.altTitle);
+  await enrichSelectedSource(result, source, result.altTitle);
 
   // If still no zoro ID, try a slug guess (title-anilistId format common on HiAnime clones)
   // This is a heuristic and may not always work
@@ -174,7 +193,7 @@ export async function getSiteIds(anilistId: number): Promise<SiteIds | null> {
 // zoro/gogoanime via Anify both key off anilistId, so
 // those stay unavailable here -- everything keyed off title (animeheaven,
 // anikoto, desidub) still works normally.
-export async function getSiteIdsByMal(malId: number): Promise<SiteIds | null> {
+export async function getSiteIdsByMal(malId: number, source?: string): Promise<SiteIds | null> {
   const cacheKey = `siteids:mal:${malId}`;
   const cached = cacheGet<SiteIds>(cacheKey);
   if (cached) {
