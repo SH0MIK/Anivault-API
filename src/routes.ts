@@ -117,16 +117,16 @@ async function resolveAlId(anilistId?: string, malId?: string): Promise<number |
 // (richer data: zoro/gogoanime via Anify); if AniList is
 // down/unreachable and we only have a malId, falls back to the MAL-only
 // path so search -> info -> episodes keeps working end to end.
-async function resolveSiteIds(anilistId?: string, malId?: string): Promise<SiteIds | null> {
+async function resolveSiteIds(anilistId?: string, malId?: string, source?: string): Promise<SiteIds | null> {
   const alId = await resolveAlId(anilistId, malId);
   if (alId) {
-    const info = await getSiteIds(alId);
+    const info = await getSiteIds(alId, source);
     if (info && info.title !== 'Unknown') return info;
     // If AniList metadata is unavailable but the caller supplied a MAL ID,
     // retain the public API's MAL-only fallback for title-based providers.
     if (!malId && info) return info;
   }
-  if (malId) return getSiteIdsByMal(parseInt(malId));
+  if (malId) return getSiteIdsByMal(parseInt(malId), source);
   return null;
 }
 
@@ -234,7 +234,7 @@ router.get('/episodes', async (req: Request, res: Response) => {
       return res.json({ anilistId: null, malId: null, title: null, source, siteId: String(heavenId), count: episodes.length, episodes });
     }
 
-    const siteIds = await resolveSiteIds(anilistId as string, malId as string);
+    const siteIds = await resolveSiteIds(anilistId as string, malId as string, source as string);
     if (!siteIds) return res.status(404).json({ error: 'Could not resolve site IDs' });
     const result = await fetchEpisodes(source as Source, siteIds, { heavenId: heavenId ? String(heavenId) : undefined });
     if (result.error) return res.status(404).json({ error: result.error });
@@ -350,7 +350,7 @@ router.get('/servers', async (req: Request, res: Response) => {
   try {
     const siteIds = heavenId && source === 'animeheaven'
       ? { anilistId: null, malId: null, title: null, siteIds: { animeheaven: String(heavenId) } }
-      : await resolveSiteIds(anilistId as string, malId as string);
+      : await resolveSiteIds(anilistId as string, malId as string, source as string);
     if (!siteIds) return res.status(404).json({ error: 'Could not resolve site IDs' });
 
     const epResult = await fetchEpisodes(source as Source, siteIds, { heavenId: heavenId ? String(heavenId) : undefined });
@@ -420,7 +420,7 @@ async function watchHandler(req: Request, res: Response, directAnikotoId?: strin
       ? { anilistId: null, malId: null, title: null, siteIds: { anikoto: directAnikotoId } }
       : directHeavenId
         ? { anilistId: null, malId: null, title: null, siteIds: { animeheaven: id } }
-        : await resolveSiteIds(anilistId, malId);
+        : await resolveSiteIds(anilistId, malId, source);
     if (!siteIds) return res.status(404).json({ error: 'Could not resolve anime' });
 
     if (source === 'megaplay') {
@@ -635,6 +635,11 @@ async function watchHandler(req: Request, res: Response, directAnikotoId?: strin
     return res.status(502).json({ error: 'Watch request failed', detail: e?.message || String(e) });
   }
 }
+
+// Register the path-based watch endpoint documented by the API tester.
+// Without this route, watchHandler exists but every /api/watch/... request
+// falls through to the generic "API endpoint not found" handler.
+router.get('/watch/:source/:id/:ep/:type', watchHandler);
 
 router.get('/health', (_req, res) => {
   // Unified with anivault.co's /healthz shape ({ status, checks, external })
