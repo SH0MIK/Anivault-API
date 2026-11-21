@@ -16,7 +16,7 @@ async function resolveZokoMalId(req: Request): Promise<string | null> {
   if (/^\d+$/.test(malId)) return malId;
   const anilistId = Number(req.query.anilistId);
   if (!Number.isSafeInteger(anilistId) || anilistId < 1) return null;
-  const ids = await getSiteIds(anilistId);
+  const ids = await getSiteIds(anilistId, 'zokoanime');
   return ids?.malId ? String(ids.malId) : null;
 }
 
