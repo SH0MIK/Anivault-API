@@ -31,13 +31,28 @@ export function proxiedHlsUrl(req: Request, url: string, ref?: string): string {
   return `${publicBase(req)}/api/proxy/hls?url=${encodeURIComponent(url)}${refParam}`;
 }
 
-function proxiedVideoUrl(req: Request, url: string): string {
-  return `${publicBase(req)}/api/proxy/video?url=${encodeURIComponent(url)}`;
+function proxiedVideoUrl(req: Request, url: string, ref?: string): string {
+  const refParam = ref ? `&ref=${encodeURIComponent(ref)}` : '';
+  return `${publicBase(req)}/api/proxy/video?url=${encodeURIComponent(url)}${refParam}`;
 }
 
 export function proxiedSubtitleUrl(req: Request, url: string, ref?: string): string {
   const refParam = ref ? `&ref=${encodeURIComponent(ref)}` : '';
   return `${publicBase(req)}/api/proxy/subtitle?url=${encodeURIComponent(url)}${refParam}`;
+}
+
+function animeSaltReferer(sourceId: string): string | undefined {
+  try {
+    if (sourceId.startsWith('animesalt:')) {
+      const payload = JSON.parse(Buffer.from(sourceId.slice('animesalt:'.length), 'base64url').toString('utf8'));
+      const url = String(payload.link || payload.url || '');
+      if (/abyssplayer|short\\.icu|sssrr\\.org/i.test(url)) return 'https://player.abyssplayer.com/';
+      if (/megaplay\\.buzz/i.test(url)) return 'https://megaplay.buzz/';
+      if (/cybervynx\\.com|vdohide/i.test(url)) return 'https://cybervynx.com/';
+      if (/ravok\\.buzz|as-cdn/i.test(url)) return 'https://ravok.buzz/';
+    }
+  } catch {}
+  return 'https://ravok.buzz/';
 }
 
 function rewriteHlsPlaylist(req: Request, body: string, sourceUrl: string, ref?: string): string {
@@ -369,7 +384,20 @@ router.get('/servers', async (req: Request, res: Response) => {
       type,
       source,
       siteId: epResult.siteId,
-      servers: filtered.map((s: any) => ({ name: s.name, sourceId: s.sourceId, type: s.type })),
+      servers: filtered.map((s: any) => {
+        const ref = source === 'animesalt' ? animeSaltReferer(s.sourceId) : undefined;
+        return {
+          name: s.name,
+          sourceId: s.sourceId,
+          type: s.type,
+          ...(s.lang ? { lang: s.lang } : {}),
+          ...(s.audioTrack ? { audioTrack: { ...s.audioTrack, hlsProxyUrl: s.audioTrack.url ? proxiedHlsUrl(req, s.audioTrack.url, ref) : null } } : {}),
+          ...(s.qualities ? { qualities: s.qualities.map((quality: any) => {
+            const hls = /\\.m3u8(?:$|\\?)/i.test(String(quality.url || '')) || /\\/hls\\//i.test(String(quality.url || ''));
+            return { ...quality, hlsProxyUrl: hls ? proxiedHlsUrl(req, quality.url, ref) : null, mp4ProxyUrl: !hls ? proxiedVideoUrl(req, quality.url, ref) : null };
+          }) } : {}),
+        };
+      }),
     });
   } catch (e) {
     return res.status(500).json({ error: String(e) });
