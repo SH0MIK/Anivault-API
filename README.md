@@ -27,7 +27,7 @@ flowchart LR
     Client -->|2: episodes| API
     Client -->|3: servers| API
     Client -->|4: watch| API
-    API -->|scrape| Sources{{AnimeHeaven · Anikoto · DesiDub · MegaPlay}}
+    API -->|scrape| Sources{{AnimeHeaven · Anikoto · DesiDub · Re:Anime · AnimeSalt · MegaPlay}}
     Sources -->|embed / mp4| API
     API -->|proxied stream + subtitles| Client
 
@@ -86,7 +86,7 @@ Resolve an anime's AniList/MAL IDs and per-source site IDs.
 | `malId` | one of these | |
 ```
 GET /api/info?malId=20
-→ { anilistId, malId, title, siteIds: { zoro, animeheaven, anikoto, ... } }
+→ { anilistId, malId, title, siteIds: { zoro, animeheaven, anikoto, animesalt, ... } }
 ```
 
 #### `GET /api/episodes`
@@ -255,6 +255,6 @@ One call instead of chaining several.
 
 ## Status
 
-AnimeHeaven does not work when this API is deployed on Vercel. Use Railway or a local deployment to run/test AnimeHeaven instead; a failure on Vercel does not necessarily mean the scraper itself is broken. Anikoto, DesiDub, and direct-ID MegaPlay are also available for streaming. The MAL scraper
+AnimeHeaven does not work when this API is deployed on Vercel. Use Railway or a local deployment to run/test AnimeHeaven instead; a failure on Vercel does not necessarily mean the scraper itself is broken. Anikoto, DesiDub, Re:Anime, AnimeSalt, and direct-ID MegaPlay are also available for streaming. The MAL scraper
 covers anime/character details, episodes, pictures, theme songs, trailers,
 and recommendations, backed by TMDB/Kitsu/AniList for art and thumbnails.
