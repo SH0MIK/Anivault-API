@@ -798,10 +798,7 @@ async function resolveAbyss(embedUrl: string): Promise<AbyssResult | null> {
 
     const pageUrl = String(pageRes.request?.res?.responseUrl || pageRes.config?.url || url);
     const html = String(pageRes.data);
-    // AnimeSalt/Abyss has used const/let/var and both quote styles for
-    // the base64 payload. Keep the capture tolerant of those markup changes.
-    const match = html.match(/(?:const|let|var)\s+datas\s*=\s*["'\x60]([^"'\x60]+)["'\x60]/i)
-      || html.match(/datas\s*[:=]\s*["']([A-Za-z0-9+/_=-]{80,})["']/i);
+    const match = html.match(/const\s+datas\s*=\s*"([^"]+)"/);
     if (!match?.[1]) return null;
 
     let qualities: AbyssQuality[] = [];
@@ -895,8 +892,7 @@ async function resolveAbyss(embedUrl: string): Promise<AbyssResult | null> {
 }
 
 function normalizeLanguage(value: string): string {
-  // Provider labels may include suffixes such as "English Dub" or "Japanese Sub".
-  const s = value.trim().toLowerCase().replace(/\b(?:dub|sub|audio)\b/g, '').replace(/[()[\]]/g, '').trim();
+  const s = value.trim().toLowerCase();
   if (!s) return 'Unknown';
   if (s === 'en' || s === 'eng' || s === 'english') return 'English';
   if (s === 'ja' || s === 'jpn' || s === 'japanese' || s === 'japan') return 'Japanese';
@@ -933,7 +929,7 @@ function pickBestAbyssQuality(qualities: AbyssQuality[]): AbyssQuality | null {
   })[0] || null;
 }
 
-export async function getAnimeSaltStream(sourceId: string): Promise<AnimeSaltStream | null> {
+export async function getAnimeSaltStream(sourceId: string): Promise<AnimeSaltStream> {
   const payload = decodeAnimeSaltSourceId(sourceId);
   const url = String(payload.url);
   const pageUrl = String(payload.pageUrl || url);
@@ -955,11 +951,8 @@ export async function getAnimeSaltStream(sourceId: string): Promise<AnimeSaltStr
     const requestedLanguage = payload.language ? normalizeLanguage(String(payload.language)) : null;
     const preferredPool = requestedLanguage
       ? flattened.filter((q) => normalizeLanguage(q.language || '') === requestedLanguage)
-      : flattened.filter((q) => normalizeLanguage(q.language || '') === 'English');
-    // Never silently substitute another audio language. That caused an Abyss
-    // Dub server to return the Japanese/MyStream stream when its own decode failed.
-    const preferred = pickBestAbyssQuality(preferredPool)
-      || (!requestedLanguage ? pickBestAbyssQuality(flattened) : null);
+      : flattened.filter((q) => /^english$/i.test(q.language || ''));
+    const preferred = pickBestAbyssQuality(preferredPool) || pickBestAbyssQuality(flattened);
 
     const targetEmbed = payload.link || url;
     if (preferred) {
@@ -980,7 +973,7 @@ export async function getAnimeSaltStream(sourceId: string): Promise<AnimeSaltStr
       };
     }
 
-    return null;
+    return { embedUrl: targetEmbed, m3u8: null, mp4: null, referer: pageUrl, subtitles: [], qualities: [], streams: [] };
   }
 
   // 2. Direct AbyssPlayer embed URL
@@ -1055,5 +1048,5 @@ export async function getAnimeSaltStream(sourceId: string): Promise<AnimeSaltStr
     } catch {}
   }
 
-  return null;
+  return { embedUrl: url, m3u8: null, referer: pageUrl, subtitles: [] };
 }
