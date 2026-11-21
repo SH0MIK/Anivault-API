@@ -200,7 +200,7 @@ export async function getSiteIdsByMal(malId: number, source?: string): Promise<S
     const wasMissingAnimeHeaven = !cached.siteIds.animeheaven;
     const wasMissingAnikoto = !cached.siteIds.anikoto;
     const wasMissingDesidub = !cached.siteIds.desidub;
-    const enriched = await enrichDesidub(await enrichAnikoto(await enrichAnimeHeaven(cached, cached.altTitle), cached.altTitle), cached.altTitle);
+    const enriched = await enrichSelectedSource(cached, source, cached.altTitle);
     if ((wasMissingAnimeHeaven && enriched.siteIds.animeheaven) || (wasMissingAnikoto && enriched.siteIds.anikoto) || (wasMissingDesidub && enriched.siteIds.desidub)) {
       cacheSet(cacheKey, enriched);
     }
@@ -225,9 +225,7 @@ export async function getSiteIdsByMal(malId: number, source?: string): Promise<S
     siteIds: {},
   };
 
-  await enrichAnimeHeaven(result, result.altTitle);
-  await enrichAnikoto(result, result.altTitle);
-  await enrichDesidub(result, result.altTitle);
+  await enrichSelectedSource(result, source, result.altTitle);
 
   cacheSet(cacheKey, result);
   return result;
