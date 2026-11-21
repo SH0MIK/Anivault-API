@@ -522,7 +522,13 @@ async function watchHandler(req: Request, res: Response, directAnikotoId?: strin
       if (source === 'desidub') raw = await getDesidubStream(server.sourceId);
       if (source === 'reanime') raw = await getReanimeStream(server.sourceId);
       if (source === 'animesalt') raw = await getAnimeSaltStream(server.sourceId);
-      if (raw) { embedResult = raw; usedServer = server.name; break; }
+      // AnimeSalt can return an empty resolver result when an Abyss
+      // language link fails. Do not treat that as a successful server or stop
+      // fallback before trying the remaining providers.
+      const playable = source === 'animesalt'
+        ? Boolean(raw?.m3u8 || raw?.mp4 || raw?.streams?.some((stream: any) => stream.qualities?.length))
+        : Boolean(raw);
+      if (playable) { embedResult = raw; usedServer = server.name; break; }
     }
     if (!embedResult) {
       const msg = strict && preferredServer ? `Server "${preferredServer}" failed to resolve a stream` : 'All servers failed';
