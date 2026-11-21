@@ -826,8 +826,15 @@ router.get('/proxy/subtitle', async (req: Request, res: Response) => {
 
 router.get('/proxy/video', async (req: Request, res: Response) => {
   const url = req.query.url as string | undefined;
+  const ref = req.query.ref as string | undefined;
   if (!url) return res.status(400).json({ error: 'Missing ?url=' });
   if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: '?url must be absolute http(s)' });
+
+  const referer = ref && /^https?:\/\//i.test(ref) ? ref : 'https://animeheaven.me/';
+  let origin = 'https://animeheaven.me';
+  try {
+    if (ref && /^https?:\/\//i.test(ref) && !/sssrr\.org/i.test(url)) origin = new URL(ref).origin;
+  } catch {}
 
   try {
     const upstream = await axios.get(url, {
@@ -836,8 +843,8 @@ router.get('/proxy/video', async (req: Request, res: Response) => {
       headers: {
         'User-Agent': 'Mozilla/5.0',
         'Accept': '*/*',
-        'Referer': 'https://animeheaven.me/',
-        'Origin': 'https://animeheaven.me',
+        'Referer': referer,
+        ...(origin ? { Origin: origin } : {}),
         ...(req.headers.range ? { Range: req.headers.range } : {}),
       },
       validateStatus: (status) => (status >= 200 && status < 300) || status === 206,
