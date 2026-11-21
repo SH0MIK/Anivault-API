@@ -368,6 +368,30 @@ pre { padding:20px; overflow-x:auto; font-family:var(--mono); font-size:12px; li
 
       <div class="source-info-card">
         <div class="sic-header">
+          <div class="sic-icon">🎬</div>
+          <div><div class="sic-name">Re:Anime</div><div class="sic-url">reanime.cz</div></div>
+          <span class="sic-tag works">HLS &amp; Decrypted</span>
+        </div>
+        <div class="sic-row"><span class="sic-row-label">Key</span><span class="sic-row-val">reanime</span></div>
+        <div class="sic-row"><span class="sic-row-label">ID format</span><span class="sic-row-val">AniList ID / MAL title mapping</span></div>
+        <div class="sic-row"><span class="sic-row-label">Streams</span><span class="sic-row-val">HD-2, FlixCloud HLS</span></div>
+        <div class="sic-row"><span class="sic-row-label">Audio</span><span class="sic-row-val">Sub, Dub, selectable tracks</span></div>
+      </div>
+
+      <div class="source-info-card">
+        <div class="sic-header">
+          <div class="sic-icon">🧂</div>
+          <div><div class="sic-name">AnimeSalt</div><div class="sic-url">animesalt.cx / .to / .ac</div></div>
+          <span class="sic-tag works">Multi-Host</span>
+        </div>
+        <div class="sic-row"><span class="sic-row-label">Key</span><span class="sic-row-val">animesalt</span></div>
+        <div class="sic-row"><span class="sic-row-label">ID format</span><span class="sic-row-val">AniList / MAL title matching</span></div>
+        <div class="sic-row"><span class="sic-row-label">Streams</span><span class="sic-row-val">Abyss, As-Cdn, MegaPlay, VdoHide</span></div>
+        <div class="sic-row"><span class="sic-row-label">Audio</span><span class="sic-row-val">Sub, Dub, multi-audio</span></div>
+      </div>
+
+      <div class="source-info-card">
+        <div class="sic-header">
           <div class="sic-icon">▶️</div>
           <div><div class="sic-name">MegaPlay Direct</div><div class="sic-url">megaplay.buzz</div></div>
           <span class="sic-tag verify">Direct-ID</span>
@@ -473,7 +497,7 @@ pre { padding:20px; overflow-x:auto; font-family:var(--mono); font-size:12px; li
 
         <!-- SOURCE -->
         <label class="field-label">Source</label>
-        <div class="source-grid" style="margin-bottom:20px;grid-template-columns:repeat(5,1fr);">
+        <div class="source-grid" style="margin-bottom:20px;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));">
           <div class="source-card active" onclick="setSource('anikoto',this)" id="src-anikoto">
             <div class="source-icon">🦊</div>
             <span class="source-name">Anikoto</span>
@@ -488,6 +512,16 @@ pre { padding:20px; overflow-x:auto; font-family:var(--mono); font-size:12px; li
             <div class="source-icon">🇮🇳</div>
             <span class="source-name">DesiDub</span>
             <span class="source-url">desidubanime.me</span>
+          </div>
+          <div class="source-card" onclick="setSource('reanime',this)" id="src-reanime">
+            <div class="source-icon">🎬</div>
+            <span class="source-name">Re:Anime</span>
+            <span class="source-url">reanime.cz</span>
+          </div>
+          <div class="source-card" onclick="setSource('animesalt',this)" id="src-animesalt">
+            <div class="source-icon">🧂</div>
+            <span class="source-name">AnimeSalt</span>
+            <span class="source-url">animesalt.cx</span>
           </div>
           <div class="source-card" onclick="setSource('megaplay',this)" id="src-megaplay">
             <div class="source-icon">▶️</div>
