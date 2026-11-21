@@ -800,7 +800,7 @@ async function resolveAbyss(embedUrl: string): Promise<AbyssResult | null> {
     const html = String(pageRes.data);
     // AnimeSalt/Abyss has used const/let/var and both quote styles for
     // the base64 payload. Keep the capture tolerant of those markup changes.
-    const match = html.match(/(?:const|let|var)\\s+datas\\s*=\\s*["'`]([^"'`]+)["'`]/i)
+    const match = html.match(/(?:const|let|var)\s+datas\s*=\s*["'\x60]([^"'\x60]+)["'\x60]/i)
       || html.match(/datas\s*[:=]\s*["']([A-Za-z0-9+/_=-]{80,})["']/i);
     if (!match?.[1]) return null;
 
