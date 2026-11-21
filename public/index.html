@@ -762,7 +762,8 @@ GET /api/watch?source=<span class="str">animeheaven</span>&heavenId=<span class=
     <span class="key">"zoro"</span>: <span class="str">"naruto-225"</span>,       <span class="cmt">// zoro-style slug, kept for compat</span>
     <span class="key">"gogoanime"</span>: <span class="str">"naruto"</span>,
     <span class="key">"animeheaven"</span>: <span class="str">"ukr6y"</span>,
-    <span class="key">"anikoto"</span>: <span class="str">"naruto-3"</span>
+    <span class="key">"anikoto"</span>: <span class="str">"naruto-3"</span>,
+    <span class="key">"animesalt"</span>: <span class="str">"naruto"</span>
   }
 }</pre>
         </div>
@@ -782,7 +783,7 @@ GET /api/watch?source=<span class="str">animeheaven</span>&heavenId=<span class=
           <thead><tr><th>Param</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
           <tbody>
             <tr><td class="param-name">anilistId / malId</td><td class="param-type">number</td><td><span class="req-badge">one required</span></td><td>Anime identifier</td></tr>
-            <tr><td class="param-name">source</td><td class="param-type">string</td><td><span class="opt-badge">optional</span></td><td>animeheaven · anikoto</td></tr>
+            <tr><td class="param-name">source</td><td class="param-type">string</td><td><span class="opt-badge">optional</span></td><td>animeheaven · anikoto · desidub · reanime · animesalt · megaplay</td></tr>
           </tbody>
         </table>
         <div class="code-block">
@@ -812,7 +813,7 @@ GET /api/watch?source=<span class="str">animeheaven</span>&heavenId=<span class=
             <tr><td class="param-name">anilistId / malId</td><td class="param-type">number</td><td><span class="req-badge">one required</span></td><td>Anime identifier</td></tr>
             <tr><td class="param-name">ep</td><td class="param-type">number</td><td><span class="req-badge">required</span></td><td>Episode number</td></tr>
             <tr><td class="param-name">type</td><td class="param-type">string</td><td><span class="opt-badge">optional</span></td><td>sub · dub · raw · all (default: sub)</td></tr>
-            <tr><td class="param-name">source</td><td class="param-type">string</td><td><span class="opt-badge">optional</span></td><td>animeheaven · anikoto</td></tr>
+            <tr><td class="param-name">source</td><td class="param-type">string</td><td><span class="opt-badge">optional</span></td><td>animeheaven · anikoto · desidub · reanime · animesalt · megaplay</td></tr>
           </tbody>
         </table>
         <div class="code-block">
@@ -840,7 +841,7 @@ GET /api/watch?source=<span class="str">animeheaven</span>&heavenId=<span class=
         <table class="params-table">
           <thead><tr><th>Param</th><th>Type</th><th>Where</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td class="param-name">source</td><td class="param-type">string</td><td>path</td><td>animeheaven · anikoto</td></tr>
+            <tr><td class="param-name">source</td><td class="param-type">string</td><td>path</td><td>animeheaven · anikoto · desidub · reanime · animesalt · megaplay</td></tr>
             <tr><td class="param-name">id</td><td class="param-type">string</td><td>path</td><td>AniList ID or "mal-{malId}"</td></tr>
             <tr><td class="param-name">ep</td><td class="param-type">number</td><td>path</td><td>Episode number</td></tr>
             <tr><td class="param-name">type</td><td class="param-type">string</td><td>path</td><td>sub · dub · raw</td></tr>
@@ -902,7 +903,7 @@ GET /api/watch?source=<span class="str">animeheaven</span>&heavenId=<span class=
   <span class="key">"external"</span>: {},
   <span class="key">"meta"</span>: {
     <span class="key">"version"</span>: <span class="str">"1.1.0-anikoto"</span>,
-    <span class="key">"sources"</span>: [<span class="str">"animeheaven"</span>, <span class="str">"anikoto"</span>]
+    <span class="key">"sources"</span>: [<span class="str">"animeheaven"</span>, <span class="str">"anikoto"</span>, <span class="str">"desidub"</span>, <span class="str">"reanime"</span>, <span class="str">"animesalt"</span>, <span class="str">"megaplay"</span>]
   },
   <span class="key">"timestamp"</span>: <span class="str">"2026-06-04T12:00:00.000Z"</span>
 }</pre>
