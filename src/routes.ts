@@ -639,7 +639,7 @@ async function watchHandler(req: Request, res: Response, directAnikotoId?: strin
 // Register the path-based watch endpoint documented by the API tester.
 // Without this route, watchHandler exists but every /api/watch/... request
 // falls through to the generic "API endpoint not found" handler.
-router.get('/watch/:source/:id/:ep/:type', watchHandler);
+router.get('/watch/:source/:id/:ep/:type', (req, res) => watchHandler(req, res));
 
 router.get('/health', (_req, res) => {
   // Unified with anivault.co's /healthz shape ({ status, checks, external })
