@@ -234,7 +234,7 @@ async function resolveAnimeHeavenId(title: string): Promise<string | null> {
     title.split(/[:(|-]/)[0]?.trim(),
     noPossessive.split(/[:(|-]/)[0]?.trim(),
   ].filter((value): value is string => Boolean(value && value.trim().length >= 3))))
-    .filter((value, index, all) => all.findIndex((item) => compact(item) === compact(value)) === index);
+    .filter((value, index, all) => all.findIndex((item) => item.trim().replace(/\\s+/g, ' ').toLowerCase() === value.trim().replace(/\\s+/g, ' ').toLowerCase()) === index);
 
   const allResults: HeavenSearchResult[] = [];
   for (const variant of variants) {
