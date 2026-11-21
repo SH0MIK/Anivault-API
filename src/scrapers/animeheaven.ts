@@ -159,7 +159,7 @@ const heavenSearchInFlight = new Map<string, Promise<HeavenSearchResult[]>>();
 const heavenFindInFlight = new Map<string, Promise<string | null>>();
 
 export async function searchAnimeHeaven(query: string): Promise<HeavenSearchResult[]> {
-  const normalizedQuery = query.trim().replace(/\\s+/g, ' ').toLowerCase();
+  const normalizedQuery = query.trim().replace(/\s+/g, ' ').toLowerCase();
   const cacheKey = `heaven:search:${normalizedQuery}`;
   console.error(`[AnimeHeaven] search start: ${query}`);
 
@@ -220,7 +220,7 @@ export async function searchAnimeHeaven(query: string): Promise<HeavenSearchResu
 }
 
 async function resolveAnimeHeavenId(title: string): Promise<string | null> {
-  const noPossessive = title.replace(/[’']s\\b/gi, '');
+  const noPossessive = title.replace(/[’']s\b/gi, '');
   const withoutApostrophes = title.replace(/[’']/g, '');
   const compact = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
   const variants = Array.from(new Set([
@@ -234,7 +234,7 @@ async function resolveAnimeHeavenId(title: string): Promise<string | null> {
     title.split(/[:(|-]/)[0]?.trim(),
     noPossessive.split(/[:(|-]/)[0]?.trim(),
   ].filter((value): value is string => Boolean(value && value.trim().length >= 3))))
-    .filter((value, index, all) => all.findIndex((item) => item.trim().replace(/\\s+/g, ' ').toLowerCase() === value.trim().replace(/\\s+/g, ' ').toLowerCase()) === index);
+    .filter((value, index, all) => all.findIndex((item) => item.trim().replace(/\s+/g, ' ').toLowerCase() === value.trim().replace(/\s+/g, ' ').toLowerCase()) === index);
 
   const allResults: HeavenSearchResult[] = [];
   for (const variant of variants) {
