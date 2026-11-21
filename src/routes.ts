@@ -515,20 +515,36 @@ async function watchHandler(req: Request, res: Response, directAnikotoId?: strin
 
     let embedResult: any = null;
     let usedServer = '';
+    let fallbackIframeResult: any = null;
+    let fallbackIframeServer = '';
     for (const server of candidates) {
       let raw: any = null;
-      if (source === 'animeheaven') raw = await getHeavenStream(server.sourceId, server.referer);
-      if (source === 'anikoto') raw = await getAnikotoEmbedUrl(server.sourceId);
-      if (source === 'desidub') raw = await getDesidubStream(server.sourceId);
-      if (source === 'reanime') raw = await getReanimeStream(server.sourceId);
-      if (source === 'animesalt') raw = await getAnimeSaltStream(server.sourceId);
-      // AnimeSalt can return an empty resolver result when an Abyss
-      // language link fails. Do not treat that as a successful server or stop
-      // fallback before trying the remaining providers.
-      const playable = source === 'animesalt'
-        ? Boolean(raw?.m3u8 || raw?.mp4 || raw?.streams?.some((stream: any) => stream.qualities?.length))
-        : Boolean(raw);
-      if (playable) { embedResult = raw; usedServer = server.name; break; }
+      try {
+        if (source === 'animeheaven') raw = await getHeavenStream(server.sourceId, server.referer);
+        if (source === 'anikoto') raw = await getAnikotoEmbedUrl(server.sourceId);
+        if (source === 'desidub') raw = await getDesidubStream(server.sourceId);
+        if (source === 'reanime') raw = await getReanimeStream(server.sourceId);
+        if (source === 'animesalt') raw = await getAnimeSaltStream(server.sourceId);
+      } catch (err) {
+        console.error(`[/watch/${source}] server ${server.name} failed:`, err);
+        continue;
+      }
+      if (!raw) continue;
+      // Prefer direct streams; preserve the first iframe as a last resort,
+      // but keep trying later providers for playable HLS/MP4 (private API flow).
+      if (raw.m3u8 || raw.mp4 || raw.streamUrl) {
+        embedResult = raw;
+        usedServer = server.name;
+        break;
+      }
+      if (!fallbackIframeResult && raw.embedUrl) {
+        fallbackIframeResult = raw;
+        fallbackIframeServer = server.name;
+      }
+    }
+    if (!embedResult && fallbackIframeResult) {
+      embedResult = fallbackIframeResult;
+      usedServer = fallbackIframeServer;
     }
     if (!embedResult) {
       const msg = strict && preferredServer ? `Server "${preferredServer}" failed to resolve a stream` : 'All servers failed';
@@ -644,37 +660,70 @@ async function watchHandler(req: Request, res: Response, directAnikotoId?: strin
     }
 
     if (source === 'animesalt') {
-      const isHls = Boolean(embedResult.m3u8), isMp4 = Boolean(embedResult.mp4);
+      const isHls = Boolean(embedResult.m3u8);
+      const isMp4 = Boolean(embedResult.mp4);
       const qualities = (embedResult.qualities ?? []).map((quality: any) => {
-        const hls = isHls || /\.m3u8(?:$|\?)/i.test(String(quality.url || '')) || /\/hls\//i.test(String(quality.url || ''));
-        return { ...quality, hlsProxyUrl: hls ? proxiedHlsUrl(req, quality.url, embedResult.referer) : null,
-          mp4ProxyUrl: !hls ? proxiedVideoUrl(req, quality.url, embedResult.referer) : null };
+        const isQualityHls = isHls || /\.m3u8(?:$|\?)/i.test(String(quality.url || '')) || /\/hls\//i.test(String(quality.url || ''));
+        return {
+          ...quality,
+          hlsProxyUrl: isQualityHls
+            ? proxiedHlsUrl(req, quality.url, embedResult.referer, embedResult.selectedAudioLang)
+            : null,
+          mp4ProxyUrl: !isQualityHls
+            ? proxiedVideoUrl(req, quality.url, embedResult.referer)
+            : null,
+        };
       });
       const streams = (embedResult.streams ?? []).map((stream: any) => ({
-        ...stream, qualities: (stream.qualities ?? []).map((quality: any) => {
-          const hls = /\.m3u8(?:$|\?)/i.test(String(quality.url || '')) || /\/hls\//i.test(String(quality.url || ''));
-          return { ...quality, hlsProxyUrl: hls ? proxiedHlsUrl(req, quality.url, stream.referer || embedResult.referer) : null,
-            mp4ProxyUrl: !hls ? proxiedVideoUrl(req, quality.url, stream.referer || embedResult.referer) : null };
+        ...stream,
+        qualities: (stream.qualities ?? []).map((quality: any) => {
+          const isStreamQualityHls = /\.m3u8(?:$|\?)/i.test(String(quality.url || '')) || /\/hls\//i.test(String(quality.url || ''));
+          return {
+            ...quality,
+            hlsProxyUrl: isStreamQualityHls
+              ? proxiedHlsUrl(req, quality.url, stream.referer || embedResult.referer)
+              : null,
+            mp4ProxyUrl: !isStreamQualityHls
+              ? proxiedVideoUrl(req, quality.url, stream.referer || embedResult.referer)
+              : null,
+          };
         }),
       }));
       return res.json({
-        anilistId: siteIds.anilistId, malId: siteIds.malId, title: siteIds.title,
-        episode: epNum, type, source, siteId: epResult.siteId, server: usedServer,
-        availableServers: filtered.map((s: any) => s.name), embedUrl: embedResult.embedUrl,
+        anilistId: siteIds.anilistId,
+        malId: siteIds.malId,
+        title: siteIds.title,
+        episode: epNum,
+        type,
+        source,
+        siteId: epResult.siteId,
+        server: usedServer,
+        availableServers: filtered.map((s: any) => s.name),
+        embedUrl: embedResult.embedUrl,
         m3u8: embedResult.m3u8 ?? null,
-        hlsProxyUrl: isHls ? proxiedHlsUrl(req, embedResult.m3u8, embedResult.referer) : null,
-        mp4: embedResult.mp4 ?? null, mp4ProxyUrl: isMp4 ? proxiedVideoUrl(req, embedResult.mp4, embedResult.referer) : null,
-        streamUrl: isHls ? proxiedHlsUrl(req, embedResult.m3u8, embedResult.referer) : isMp4 ? proxiedVideoUrl(req, embedResult.mp4) : null,
-        playbackMode: isHls ? 'hls' : isMp4 ? 'mp4' : 'iframe', iframeOnly: !isHls && !isMp4,
-        qualities, streams,
+        hlsProxyUrl: isHls ? proxiedHlsUrl(req, embedResult.m3u8, embedResult.referer, embedResult.selectedAudioLang) : null,
+        mp4: embedResult.mp4 ?? null,
+        mp4ProxyUrl: isMp4 ? proxiedVideoUrl(req, embedResult.mp4, embedResult.referer) : null,
+        streamUrl: isHls
+          ? proxiedHlsUrl(req, embedResult.m3u8, embedResult.referer, embedResult.selectedAudioLang)
+          : isMp4
+            ? proxiedVideoUrl(req, embedResult.mp4, embedResult.referer)
+            : null,
+        rawStreamUrl: embedResult.m3u8 || embedResult.mp4 || null,
+        playbackMode: isHls ? 'hls' : isMp4 ? 'mp4' : 'iframe',
+        iframeOnly: !isHls && !isMp4,
+        selectedAudioLang: embedResult.selectedAudioLang ?? null,
         audioTracks: (embedResult.audioTracks ?? []).map((track: any) => ({
-          ...track, hlsProxyUrl: track.url ? proxiedHlsUrl(req, track.url, embedResult.referer) : null,
+          ...track,
+          hlsProxyUrl: track.url ? proxiedHlsUrl(req, track.url, embedResult.referer, track.lang) : null,
         })),
-        subtitles: (embedResult.subtitles ?? []).map((subtitle: any) => ({
-          ...subtitle, url: proxiedSubtitleUrl(req, subtitle.url, embedResult.referer),
+        qualities: sortQualitiesDesc(qualities),
+        streams,
+        subtitles: (embedResult.subtitles ?? []).map((s: any) => ({
+          ...s,
+          url: proxiedSubtitleUrl(req, s.url, embedResult.referer),
         })),
-        intro: null, outro: null,
-        note: isHls || isMp4 ? null : 'No direct stream extracted; use embedUrl in an iframe.',
+        note: isHls || isMp4 ? null : 'No direct stream extracted — use embedUrl in an iframe.',
       });
     }
 
