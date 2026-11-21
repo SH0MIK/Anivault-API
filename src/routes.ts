@@ -134,7 +134,10 @@ async function resolveSiteIds(anilistId?: string, malId?: string): Promise<SiteI
   const alId = await resolveAlId(anilistId, malId);
   if (alId) {
     const info = await getSiteIds(alId);
-    if (info) return info;
+    if (info && info.title !== 'Unknown') return info;
+    // If AniList metadata is unavailable but the caller supplied a MAL ID,
+    // retain the public API's MAL-only fallback for title-based providers.
+    if (!malId && info) return info;
   }
   if (malId) return getSiteIdsByMal(parseInt(malId));
   return null;
