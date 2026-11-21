@@ -657,7 +657,7 @@ async function watchHandler(req: Request, res: Response, directAnikotoId?: strin
         availableServers: filtered.map((s: any) => s.name), embedUrl: embedResult.embedUrl,
         m3u8: embedResult.m3u8 ?? null,
         hlsProxyUrl: isHls ? proxiedHlsUrl(req, embedResult.m3u8, embedResult.referer) : null,
-        mp4: embedResult.mp4 ?? null, mp4ProxyUrl: isMp4 ? proxiedVideoUrl(req, embedResult.mp4) : null,
+        mp4: embedResult.mp4 ?? null, mp4ProxyUrl: isMp4 ? proxiedVideoUrl(req, embedResult.mp4, embedResult.referer) : null,
         streamUrl: isHls ? proxiedHlsUrl(req, embedResult.m3u8, embedResult.referer) : isMp4 ? proxiedVideoUrl(req, embedResult.mp4) : null,
         playbackMode: isHls ? 'hls' : isMp4 ? 'mp4' : 'iframe', iframeOnly: !isHls && !isMp4,
         qualities, streams,
