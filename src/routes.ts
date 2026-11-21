@@ -596,7 +596,7 @@ async function watchHandler(req: Request, res: Response, directAnikotoId?: strin
         m3u8: embedResult.m3u8 ?? null,
         hlsProxyUrl: isHls ? proxiedHlsUrl(req, embedResult.m3u8, embedResult.referer) : null,
         mp4: embedResult.mp4 ?? null,
-        mp4ProxyUrl: isMp4 ? proxiedVideoUrl(req, embedResult.mp4) : null,
+        mp4ProxyUrl: isMp4 ? proxiedVideoUrl(req, embedResult.mp4, embedResult.referer) : null,
         playbackMode: isHls ? 'hls' : isMp4 ? 'mp4' : 'iframe',
         iframeOnly: !isHls && !isMp4,
         subtitles: (embedResult.subtitles ?? []).map((s: any) => ({
@@ -639,7 +639,7 @@ async function watchHandler(req: Request, res: Response, directAnikotoId?: strin
       const qualities = (embedResult.qualities ?? []).map((quality: any) => {
         const hls = isHls || /\.m3u8(?:$|\\?)/i.test(String(quality.url || '')) || /\/hls\//i.test(String(quality.url || ''));
         return { ...quality, hlsProxyUrl: hls ? proxiedHlsUrl(req, quality.url, embedResult.referer) : null,
-          mp4ProxyUrl: !hls ? proxiedVideoUrl(req, quality.url) : null };
+          mp4ProxyUrl: !hls ? proxiedVideoUrl(req, quality.url, embedResult.referer) : null };
       });
       const streams = (embedResult.streams ?? []).map((stream: any) => ({
         ...stream, qualities: (stream.qualities ?? []).map((quality: any) => {
