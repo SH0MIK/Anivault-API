@@ -126,7 +126,7 @@ export async function getSiteIds(anilistId: number, source?: 'animeheaven' | 'an
   const cached = cacheGet<SiteIds>(cacheKey);
   if (cached) {
     const enriched = await enrichSelectedSource(cached, source);
-    if (enriched !== cached) cacheSet(cacheKey, enriched);
+    cacheSet(cacheKey, enriched);
     return enriched;
   }
 
@@ -182,7 +182,7 @@ export async function getSiteIdsByMal(malId: number, source?: 'animeheaven' | 'a
   const cached = cacheGet<SiteIds>(cacheKey);
   if (cached) {
     const enriched = await enrichSelectedSource(cached, source);
-    if (enriched !== cached) cacheSet(cacheKey, enriched);
+    cacheSet(cacheKey, enriched);
     return enriched;
   }
 
