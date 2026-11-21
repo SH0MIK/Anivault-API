@@ -801,7 +801,7 @@ async function resolveAbyss(embedUrl: string): Promise<AbyssResult | null> {
     // AnimeSalt/Abyss has used const/let/var and both quote styles for
     // the base64 payload. Keep the capture tolerant of those markup changes.
     const match = html.match(/(?:const|let|var)\\s+datas\\s*=\\s*["'`]([^"'`]+)["'`]/i)
-      || html.match(/datas\\s*[:=]\\s*["']([A-Za-z0-9+/_=-]{80,})["']/i);
+      || html.match(/datas\s*[:=]\s*["']([A-Za-z0-9+/_=-]{80,})["']/i);
     if (!match?.[1]) return null;
 
     let qualities: AbyssQuality[] = [];
@@ -896,7 +896,7 @@ async function resolveAbyss(embedUrl: string): Promise<AbyssResult | null> {
 
 function normalizeLanguage(value: string): string {
   // Provider labels may include suffixes such as "English Dub" or "Japanese Sub".
-  const s = value.trim().toLowerCase().replace(/\\b(?:dub|sub|audio)\\b/g, '').replace(/[()[\\]]/g, '').trim();
+  const s = value.trim().toLowerCase().replace(/\b(?:dub|sub|audio)\b/g, '').replace(/[()[\]]/g, '').trim();
   if (!s) return 'Unknown';
   if (s === 'en' || s === 'eng' || s === 'english') return 'English';
   if (s === 'ja' || s === 'jpn' || s === 'japanese' || s === 'japan') return 'Japanese';
