@@ -153,64 +153,88 @@ function scoreTitle(query: string, title: string): number {
   return Math.floor((matches / Math.max(needle.length, 1)) * 40);
 }
 
+// Coalesce concurrent requests: mapper enrichment can be reached through
+// multiple ID-resolution paths for the same anime during one API request.
+const heavenSearchInFlight = new Map<string, Promise<HeavenSearchResult[]>>();
+const heavenFindInFlight = new Map<string, Promise<string | null>>();
+
 export async function searchAnimeHeaven(query: string): Promise<HeavenSearchResult[]> {
-  const cacheKey = `heaven:search:${query.toLowerCase().trim()}`;
+  const normalizedQuery = query.trim().replace(/\\s+/g, ' ').toLowerCase();
+  const cacheKey = `heaven:search:${normalizedQuery}`;
   console.error(`[AnimeHeaven] search start: ${query}`);
+
   const cached = cacheGet<HeavenSearchResult[]>(cacheKey);
   if (cached) {
     console.error(`[AnimeHeaven] search cache hit: ${cached.length} result(s)`);
     return cached;
   }
 
-  let res: any;
-  try {
-    res = await http.get('/fastsearch.php', {
-    params: { xhr: 1, s: query },
-    headers: { Accept: 'text/html,*/*' },
-  });
-  } catch (error: any) {
-    console.error(`[AnimeHeaven] search request failed: ${error?.response?.status ?? error?.message ?? error}`);
-    throw error;
+  const pending = heavenSearchInFlight.get(normalizedQuery);
+  if (pending) {
+    console.error(`[AnimeHeaven] search joined in-flight request: ${query}`);
+    return pending;
   }
-  console.error(`[AnimeHeaven] search status: ${res.status} url=${res.request?.res?.responseUrl ?? 'unknown'}`);
-  captureHeavenCookies(res);
-  const $ = cheerio.load(res.data);
 
-  const results: HeavenSearchResult[] = [];
-  $('a[href*="anime.php?"]').each((_, el) => {
-    const href = $(el).attr('href') ?? '';
-    const id = href.split('?')[1]?.trim();
-    const title = $(el).find('.fastname').text().trim() || $(el).find('img').attr('alt')?.trim() || '';
-    if (!id || !title) return;
-    results.push({
-      id,
-      title,
-      url: absoluteUrl(`/anime.php?${id}`),
-      image: absoluteUrl($(el).find('img').attr('src') ?? ''),
+  const request = (async (): Promise<HeavenSearchResult[]> => {
+    let res: any;
+    try {
+      res = await http.get('/fastsearch.php', {
+        params: { xhr: 1, s: query },
+        headers: { Accept: 'text/html,*/*' },
+      });
+    } catch (error: any) {
+      console.error(`[AnimeHeaven] search request failed: ${error?.response?.status ?? error?.message ?? error}`);
+      throw error;
+    }
+    console.error(`[AnimeHeaven] search status: ${res.status} url=${res.request?.res?.responseUrl ?? 'unknown'}`);
+    captureHeavenCookies(res);
+    const $ = cheerio.load(res.data);
+
+    const results: HeavenSearchResult[] = [];
+    $('a[href*="anime.php?"]').each((_, el) => {
+      const href = $(el).attr('href') ?? '';
+      const id = href.split('?')[1]?.trim();
+      const title = $(el).find('.fastname').text().trim() || $(el).find('img').attr('alt')?.trim() || '';
+      if (!id || !title) return;
+      results.push({
+        id,
+        title,
+        url: absoluteUrl(`/anime.php?${id}`),
+        image: absoluteUrl($(el).find('img').attr('src') ?? ''),
+      });
     });
-  });
 
-  console.error(`[AnimeHeaven] search matched: ${results.length} result(s)`);
-  cacheSet(cacheKey, results, 'episodes');
-  return results;
+    console.error(`[AnimeHeaven] search matched: ${results.length} result(s)`);
+    cacheSet(cacheKey, results, 'episodes');
+    return results;
+  })();
+
+  heavenSearchInFlight.set(normalizedQuery, request);
+  try {
+    return await request;
+  } finally {
+    if (heavenSearchInFlight.get(normalizedQuery) === request) {
+      heavenSearchInFlight.delete(normalizedQuery);
+    }
+  }
 }
 
-export async function findAnimeHeavenId(title: string): Promise<string | null> {
-  console.error(`[AnimeHeaven] find ID: ${title}`);
-  const noPossessive = title.replace(/[’']s\b/gi, '');
+async function resolveAnimeHeavenId(title: string): Promise<string | null> {
+  const noPossessive = title.replace(/[’']s\\b/gi, '');
+  const withoutApostrophes = title.replace(/[’']/g, '');
+  const compact = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
   const variants = Array.from(new Set([
     title,
+    // AnimeHeaven's fast search can tokenize spaced titles unexpectedly.
+    // A compact retry handles titles such as "DAN DA DAN" -> "DANDADAN".
+    compact(title),
     noPossessive,
-    title.replace(/[’']/g, ''),
-    noPossessive.replace(/[+]/g, ' '),
-    title.replace(/[+]/g, ' '),
+    compact(noPossessive),
+    withoutApostrophes,
     title.split(/[:(|-]/)[0]?.trim(),
     noPossessive.split(/[:(|-]/)[0]?.trim(),
-    title.replace(/[’']/g, '').split(/\s+/).slice(0, 2).join(' '),
-    noPossessive.split(/\s+/).slice(0, 2).join(' '),
-    title.replace(/[’']/g, '').split(/\s+/)[0],
-    noPossessive.split(/\s+/)[0],
-  ].filter((value): value is string => Boolean(value && value.trim().length >= 3))));
+  ].filter((value): value is string => Boolean(value && value.trim().length >= 3))))
+    .filter((value, index, all) => all.findIndex((item) => compact(item) === compact(value)) === index);
 
   const allResults: HeavenSearchResult[] = [];
   for (const variant of variants) {
@@ -219,7 +243,10 @@ export async function findAnimeHeavenId(title: string): Promise<string | null> {
       return [];
     });
     allResults.push(...results);
-    if (results.some((result) => scoreTitle(title, result.title) >= 80)) break;
+
+    // Only stop early on a normalized exact title. A merely similar result
+    // must not prevent a later compact/alternate query from finding the exact one.
+    if (results.some((result) => normalizeTitle(result.title) === normalizeTitle(title))) break;
   }
 
   const unique = Array.from(new Map(allResults.map((result) => [result.id, result])).values());
@@ -232,13 +259,6 @@ export async function findAnimeHeavenId(title: string): Promise<string | null> {
     .map((result) => ({ result, score: scoreTitle(title, result.title) }))
     .sort((a, b) => b.score - a.score)[0];
 
-  // Below this, the "match" is more likely a different anime (or an
-  // unrelated series when the title is a movie/OVA/special) than the real
-  // thing. Treat it as not found rather than returning a wrong embed.
-  // 60 is the score a genuine substring match gets (e.g. query is a clean
-  // prefix/substring of the real listed title, or vice versa) — legit
-  // matches on AnimeHeaven should never score below this. The false
-  // matches from the bug report score ~20-35, well under this bar.
   const MIN_ACCEPT_SCORE = 60;
   if (best.score < MIN_ACCEPT_SCORE) {
     console.error(`[AnimeHeaven] best match rejected: ${best.result.title} score=${best.score}`);
@@ -247,6 +267,26 @@ export async function findAnimeHeavenId(title: string): Promise<string | null> {
 
   console.error(`[AnimeHeaven] matched: ${best.result.title} id=${best.result.id} score=${best.score}`);
   return best.result.id;
+}
+
+export async function findAnimeHeavenId(title: string): Promise<string | null> {
+  const key = normalizeTitle(title);
+  console.error(`[AnimeHeaven] find ID: ${title}`);
+  const cached = heavenFindInFlight.get(key);
+  if (cached) {
+    console.error(`[AnimeHeaven] joined in-flight ID lookup: ${title}`);
+    return cached;
+  }
+
+  const request = resolveAnimeHeavenId(title);
+  heavenFindInFlight.set(key, request);
+  try {
+    return await request;
+  } finally {
+    if (heavenFindInFlight.get(key) === request) {
+      heavenFindInFlight.delete(key);
+    }
+  }
 }
 
 export async function getHeavenEpisodes(animeId: string): Promise<HeavenEpisode[]> {
